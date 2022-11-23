@@ -1,0 +1,1509 @@
+---
+title: "data analysis"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load data
+
+```{r load data}
+library(caret)
+library(lme4)
+library(ggplot2)
+library(plyr)
+LIJ_T2_intra = read.csv(file = 'T2_intra.csv')
+LIJ_T2_intra_ori = LIJ_T2_intra
+preProc  <- preProcess(LIJ_T2_intra[,1:812],method = c("center", "scale"))
+LIJ_T2_intra[,1:812] = predict(preProc,LIJ_T2_intra[,1:812])
+LIJ_T2_dilate = read.csv(file = 'T2_dilate.csv')
+LIJ_T2_dilate[,1:812] = predict(preProc,LIJ_T2_dilate[,1:812])
+LIJ_T2_peri = read.csv(file = 'T2_peri.csv')
+LIJ_T2_peri[,1:812] = predict(preProc,LIJ_T2_peri[,1:812])
+LIJ_ADC_intra = read.csv(file = 'ADC_intra.csv')
+LIJ_ADC_intra_ori = LIJ_ADC_intra
+preProc_ADC  <- preProcess(LIJ_ADC_intra[,1:812],method = c("center", "scale"))
+LIJ_ADC_intra[,1:812] = predict(preProc_ADC,LIJ_ADC_intra[,1:812])
+LIJ_ADC_dilate = read.csv(file = 'ADC_dilate.csv')
+LIJ_ADC_dilate[,1:812] = predict(preProc_ADC,LIJ_ADC_dilate[,1:812])
+LIJ_ADC_peri = read.csv(file = 'ADC_peri.csv')
+LIJ_ADC_peri[,1:812] = predict(preProc_ADC,LIJ_ADC_peri[,1:812])
+
+test_T2_intra = read.csv(file = 'T2_intra_test.csv')
+
+
+test_T2_intra[,1:812] = predict(preProc,test_T2_intra[,1:812])
+test_T2_dilate = read.csv(file = 'T2_dilate_test.csv')
+test_T2_dilate[,1:812] = predict(preProc,test_T2_dilate[,1:812])
+test_T2_peri = read.csv(file = 'T2_peri_test.csv')
+test_T2_peri[,1:812] = predict(preProc,test_T2_peri[,1:812])
+test_ADC_intra = read.csv(file = 'ADC_intra_test.csv')
+test_ADC_intra_ori = test_ADC_intra
+test_ADC_intra[,1:812] = predict(preProc_ADC,test_ADC_intra[,1:812])
+test_ADC_dilate = read.csv(file = 'ADC_dilate_test.csv')
+test_ADC_dilate[,1:812] = predict(preProc_ADC,test_ADC_dilate[,1:812])
+test_ADC_peri = read.csv(file = 'ADC_peri_test.csv')
+test_ADC_peri[,1:812] = predict(preProc_ADC,test_ADC_peri[,1:812])
+
+
+T2_intra = rbind(LIJ_T2_intra[1:815], test_T2_intra[1:815])
+T2_dilate = rbind(LIJ_T2_dilate, test_T2_dilate)
+T2_peri = rbind(LIJ_T2_peri, test_T2_peri)
+
+ADC_intra = rbind(LIJ_ADC_intra, test_ADC_intra)
+ADC_intra_ori = rbind(LIJ_ADC_intra_ori, test_ADC_intra_ori)
+ADC_dilate = rbind(LIJ_ADC_dilate, test_ADC_dilate)
+ADC_peri = rbind(LIJ_ADC_peri, test_ADC_peri)
+
+test_T2_intra$PatientID = unclass(as.factor(test_T2_intra$PatientID))
+
+
+```
+
+```{r load validation data}
+validation_T2_intra = read.csv(file = './validation/T2_intra.csv')
+validation_T2_intra_ori = validation_T2_intra
+validation_PatientID = validation_T2_intra$PatientID
+validation_T2_intra[,1:812] = predict(preProc,validation_T2_intra[,1:812])
+validation_T2_intra = validation_T2_intra[,1:815]
+validation_T2_dilate = read.csv(file = './validation/T2_dilate.csv')
+validation_T2_dilate[,1:812] = predict(preProc,validation_T2_dilate[,1:812])
+
+
+
+validation_T2_peri = read.csv(file = './validation/T2_peri.csv')
+validation_T2_peri[,1:812] = predict(preProc,validation_T2_peri[,1:812])
+
+
+
+validation_ADC_intra = read.csv(file = './validation/ADC_intra.csv')
+validation_ADC_intra[,1:812] = predict(preProc_ADC,validation_ADC_intra[,1:812])
+
+
+
+validation_ADC_dilate = read.csv(file = './validation/ADC_dilate.csv')
+validation_ADC_dilate[,1:812] = predict(preProc_ADC,validation_ADC_dilate[,1:812])
+
+
+
+validation_ADC_peri = read.csv(file = './validation/ADC_peri.csv')
+validation_ADC_peri[,1:812] = predict(preProc_ADC,validation_ADC_peri[,1:812])
+
+
+```
+
+
+```{r sepate testing set into different dataset}
+MRF_T2_intra =  test_T2_intra[1:58,]
+QIN_T2_intra =  test_T2_intra[59:78,]
+CCF_T2_intra  =  test_T2_intra[79:128,]
+
+
+MRF_T2_dilate =  test_T2_dilate[1:58,]
+QIN_T2_dilate =  test_T2_dilate[59:78,]
+CCF_T2_dilate  =  test_T2_dilate[79:128,]
+
+MRF_T2_peri =  test_T2_peri[1:58,]
+QIN_T2_peri =  test_T2_peri[59:78,]
+CCF_T2_peri =  test_T2_peri[79:128,]
+
+MRF_ADC_intra =  test_ADC_intra[1:58,]
+QIN_ADC_intra =  test_ADC_intra[59:78,]
+CCF_ADC_intra  =  test_ADC_intra[79:128,]
+
+
+MRF_ADC_dilate =  test_ADC_dilate[1:58,]
+QIN_ADC_dilate =  test_ADC_dilate[59:78,]
+CCF_ADC_dilate  =  test_ADC_dilate[79:128,]
+
+MRF_ADC_peri =  test_ADC_peri[1:58,]
+QIN_ADC_peri =  test_ADC_peri[59:78,]
+CCF_ADC_peri =  test_ADC_peri[79:128,]
+
+```
+
+```{r add datasetName}
+datasetName = c( replicate(150,'LIJ'),
+                 replicate(58,'MRF'),
+                 replicate(20,'QIN'),
+                 replicate(50,'CCF'))
+T2_intra$datasetName = datasetName
+T2_dilate$datasetName = datasetName
+T2_peri$datasetName = datasetName
+
+ADC_intra$datasetName = datasetName
+ADC_dilate$datasetName = datasetName
+ADC_peri$datasetName = datasetName
+
+validation_T2_intra$datasetName = c( replicate(113,'validation'))
+validation_T2_dilate$datasetName = c( replicate(113,'validation'))
+validation_T2_peri$datasetName = c( replicate(113,'validation'))
+
+validation_ADC_intra$datasetName = c( replicate(113,'validation'))
+validation_ADC_dilate$datasetName = c( replicate(113,'validation'))
+validation_ADC_peri$datasetName = c( replicate(113,'validation'))
+
+
+T2_intra = rbind(T2_intra, validation_T2_intra[,1:816])
+T2_dilate = rbind(T2_dilate, validation_T2_dilate)
+T2_peri = rbind(T2_peri, validation_T2_peri)
+
+ADC_intra = rbind(ADC_intra, validation_ADC_intra)
+ADC_dilate = rbind(ADC_dilate, validation_ADC_dilate)
+ADC_peri = rbind(ADC_peri, validation_ADC_peri)
+
+```
+
+
+```{r combine intra and dilate}
+T2_validation = rbind(validation_T2_intra[,1:816], validation_T2_dilate[,1:816])
+ADC_validation = rbind(validation_ADC_intra[,1:816], validation_ADC_dilate[,1:816])
+annoName = c( replicate(113,'intra'),
+                 replicate(113,'dilate'))
+T2_validation$annoName = annoName
+ADC_validation$annoName = annoName
+
+```
+
+
+```{r combine intra and dilate}
+T2 = rbind(T2_intra, T2_dilate)
+ADC = rbind(ADC_intra, ADC_dilate)
+annoName = c( replicate(391,'intra'),
+                 replicate(391,'dilate'))
+T2$annoName = annoName
+ADC$annoName = annoName
+
+
+```
+
+```{r combine ADC and T2}
+INTRA = cbind(T2,ADC)
+INTRA <- INTRA[, !duplicated(colnames(INTRA))]
+PERI = cbind(T2_peri,ADC_peri)
+PERI <- PERI[, !duplicated(colnames(PERI))]
+
+```
+
+
+
+```{r plot T2 intensity distribution among annotation}
+# Interleaved histograms
+mu <- ddply(T2, "annoName", summarise, grp.mean=mean(Intensity_T2_mean))
+ggplot(T2, aes(x=Intensity_T2_mean, color=annoName, fill=annoName)) +
+  geom_histogram(position="identity", alpha=0.5)+
+  geom_vline(data=mu, aes(xintercept=grp.mean, color=annoName),
+             linetype="dashed")+
+  geom_density(alpha=.2) +
+  theme(legend.position="top")
+
+```
+
+```{r plot T2 validation intensity distribution among annotation}
+# Interleaved histograms
+mu <- ddply(T2_validation, "annoName", summarise, grp.mean=mean(Intensity_T2_mean))
+ggplot(T2_validation, aes(x=Intensity_T2_mean, color=annoName, fill=annoName)) +
+  geom_histogram(position="identity", alpha=0.5)+
+  geom_vline(data=mu, aes(xintercept=grp.mean, color=annoName),
+             linetype="dashed")+
+  geom_density(alpha=.2) +
+  theme(legend.position="top")
+
+```
+
+```{r plot ADC intensity distribution among annotations}
+# Interleaved histograms
+mu <- ddply(ADC, "annoName", summarise, grp.mean=mean(Intensity_ADC_mean))
+ggplot(ADC, aes(x=Intensity_ADC_mean, color=annoName, fill=annoName)) +
+  geom_histogram(position="identity", alpha=0.5)+
+  geom_vline(data=mu, aes(xintercept=grp.mean, color=annoName),
+             linetype="dashed")+
+  geom_density(alpha=.2) +
+  theme(legend.position="top")
+
+```
+
+```{r plot ADC validation intensity distribution among annotations}
+# Interleaved histograms
+mu <- ddply(ADC_validation, "annoName", summarise, grp.mean=mean(Intensity_ADC_mean))
+ggplot(ADC_validation, aes(x=Intensity_ADC_mean, color=annoName, fill=annoName)) +
+  geom_histogram(position="identity", alpha=0.5)+
+  geom_vline(data=mu, aes(xintercept=grp.mean, color=annoName),
+             linetype="dashed")+
+  geom_density(alpha=.2) +
+  theme(legend.position="top")
+
+```
+
+
+```{r load unstable feature ids}
+t2featurename = colnames(T2_intra)
+adcfeaturename = colnames(ADC_intra)
+allfeaturename = unique(c(t2featurename[1:(length(t2featurename)-4)],adcfeaturename[1:(length(adcfeaturename)-4)]))
+T2_intra_unstable = read.csv(file = 'T2_intra_deleted_features.csv')
+T2_dilate_unstable = read.csv(file = 'T2_dilate_deleted_features.csv')
+T2_peri_unstable = read.csv(file = 'T2_peri_deleted_features.csv')
+ADC_intra_unstable = read.csv(file = 'ADC_intra_deleted_features.csv')
+ADC_dilate_unstable = read.csv(file = 'ADC_dilate_deleted_features.csv')
+ADC_peri_unstable = read.csv(file = 'ADC_peri_deleted_features.csv')
+
+```
+
+
+```{r identify features that are unstable to the annotation}
+library("dplyr")
+T2_intra_idx = unique(unlist(T2_intra_unstable)) 
+T2_dilate_idx = unique(unlist(T2_dilate_unstable)) 
+T2_idx = c(setdiff(T2_intra_idx, T2_dilate_idx), setdiff(T2_dilate_idx, T2_intra_idx))
+
+ADC_intra_idx = unique(unlist(ADC_intra_unstable)) 
+ADC_dilate_idx = unique(unlist(ADC_dilate_unstable))
+ADC_idx = c(setdiff(ADC_intra_idx, ADC_dilate_idx), setdiff(ADC_dilate_idx, ADC_intra_idx))
+
+AnnotUnstableNames = c(t2featurename[T2_idx],adcfeaturename[ADC_idx])
+
+nanfeatures = allfeaturename[apply(INTRA, 2, function(x) any(is.na(x)))]
+fullfeatures = allfeaturename[apply(INTRA, 2, function(x) !any(is.na(x)))]
+pvalues <- lapply(allfeaturename,
+                       function(x){ 
+                         comResult <- wilcox.test(INTRA[,x] ~ annoName, data = INTRA, paired = FALSE)
+                         pvalue = comResult$p.value
+                         return(pvalue)
+                         })
+
+unstablefeatures = allfeaturename[pvalues<0.05]
+AnnotUnstableNames = unique(c(AnnotUnstableNames,unstablefeatures))
+
+
+```
+
+```{r identify features that are unstable to testretest}
+T2_intra_idx = unique(unlist(T2_intra_unstable$testRetest)) 
+T2_dilate_idx = unique(unlist(T2_dilate_unstable$testRetest)) 
+T2_idx = unique(c(T2_intra_idx, T2_dilate_idx))
+
+ADC_intra_idx = unique(unlist(ADC_intra_unstable$testRetest)) 
+ADC_dilate_idx = unique(unlist(ADC_dilate_unstable$testRetest))
+ADC_idx = unique(c(ADC_intra_idx, ADC_dilate_idx))
+
+TestRetestUnstableNames = c(t2featurename[T2_idx],adcfeaturename[ADC_idx])
+
+T2_peri_idx = unique(unlist(T2_peri_unstable$testRetest)) 
+ADC_peri_idx = unique(unlist(ADC_peri_unstable$testRetest)) 
+
+TestRetestUnstableNames_peri = c(t2featurename[T2_peri_idx],adcfeaturename[ADC_peri_idx])
+
+
+```
+
+```{r identify features that are unstable to coil}
+T2_intra_idx = unique(unlist(T2_intra_unstable$coil)) 
+T2_dilate_idx = unique(unlist(T2_dilate_unstable$coil)) 
+T2_idx = unique(c(T2_intra_idx, T2_dilate_idx))
+
+ADC_intra_idx = unique(unlist(ADC_intra_unstable$coil)) 
+ADC_dilate_idx = unique(unlist(ADC_dilate_unstable$coil))
+ADC_idx = unique(c(ADC_intra_idx, ADC_dilate_idx))
+
+CoilUnstableNames = c(t2featurename[T2_idx],adcfeaturename[ADC_idx])
+
+T2_peri_idx = unique(unlist(T2_peri_unstable$coil)) 
+ADC_peri_idx = unique(unlist(ADC_peri_unstable$coil)) 
+
+CoilUnstableNames_peri = c(t2featurename[T2_peri_idx],adcfeaturename[ADC_peri_idx])
+
+
+```
+
+```{r identify features that are unstable to redundent}
+T2_intra_idx = unique(unlist(T2_intra_unstable$correlation)) 
+T2_dilate_idx = unique(unlist(T2_dilate_unstable$correlation)) 
+T2_idx = unique(c(T2_intra_idx, T2_dilate_idx))
+
+ADC_intra_idx = unique(unlist(ADC_intra_unstable$correlation)) 
+ADC_dilate_idx = unique(unlist(ADC_dilate_unstable$correlation))
+ADC_idx = unique(c(ADC_intra_idx, ADC_dilate_idx))
+
+RedUnstableNames = c(t2featurename[T2_idx],adcfeaturename[ADC_idx])
+
+T2_peri_idx = unique(unlist(T2_peri_unstable$correlation)) 
+ADC_peri_idx = unique(unlist(ADC_peri_unstable$correlation)) 
+
+RedUnstableNames_peri = c(t2featurename[T2_peri_idx],adcfeaturename[ADC_peri_idx])
+
+
+```
+
+```{r all unstable features}
+UnstableNames = unique(c(TestRetestUnstableNames,AnnotUnstableNames,RedUnstableNames ))
+stablefeatureNames = setdiff(allfeaturename, UnstableNames)
+stablefeatureNames = stablefeatureNames[apply(INTRA[,stablefeatureNames], 2, function(x) !any(is.na(x)))]
+```
+
+```{r get stable feature name of T2 and ADC respectively}
+T2_stableNames = stablefeatureNames[1:120]
+ADC_stableNames = stablefeatureNames[121:177]
+  
+```
+
+
+
+```{r rearrange intra and peri data for training}
+library(glmnet)
+library(pROC)
+set.seed(12)
+LIJ_intra = cbind(LIJ_T2_intra[,1:812],LIJ_ADC_intra[,1:812])
+LIJ_peri = cbind(LIJ_T2_peri[,1:812],LIJ_ADC_peri[,1:812])
+LIJ = cbind(LIJ_intra[,stablefeatureNames],LIJ_peri[,stablefeatureNames])
+test_intra = cbind(test_T2_intra[,1:812],test_ADC_intra[,1:812])
+test_peri = cbind(test_T2_peri[,1:812],test_ADC_peri[,1:812])
+test = cbind(test_intra[,stablefeatureNames],test_peri[,stablefeatureNames])
+
+validation_intra = cbind(validation_T2_intra[,1:812],validation_ADC_intra[,1:812])
+validation_peri = cbind(validation_T2_peri[,1:812],validation_ADC_peri[,1:812])
+
+validation_intra$PatientID = validation_PatientID
+validation_peri$PatientID = validation_PatientID
+
+
+LIJ_intra$CSPCa = as.numeric(LIJ_T2_intra$GGG>1)
+LIJ_intra$PatientID = LIJ_T2_intra$PatientID
+
+test_intra$CSPCa = as.numeric(test_T2_intra$GGG>1)
+test_intra$PatientID = test_T2_intra$PatientID
+
+validation_intra$CSPCa = as.numeric(validation_T2_intra$GGG>1)
+
+LIJ_peri$CSPCa = as.numeric(LIJ_T2_intra$GGG>1)
+LIJ_peri$PatientID = LIJ_T2_intra$PatientID
+
+test_peri$CSPCa = as.numeric(test_T2_intra$GGG>1)
+test_peri$PatientID = test_T2_intra$PatientID
+
+validation_peri$CSPCa = as.numeric(validation_T2_peri$GGG>1)
+
+LIJ_intra$PIRADS = LIJ_T2_intra$PIRADS
+test_intra$PIRADS = test_T2_intra$PIRADS
+validation_intra$PIRADS = validation_T2_intra$PIRADS
+
+LIJ_peri$PIRADS = LIJ_T2_intra$PIRADS
+test_peri$PIRADS = test_T2_intra$PIRADS
+validation_peri$PIRADS = validation_T2_peri$PIRADS
+
+NOTNA_id = !is.na(test_T2_intra$GGG)
+
+LIJ_intra_MRIdetectableCSPCa = LIJ_intra[LIJ_intra$CSPCa>0 & LIJ_intra$PIRADS>2,]
+LIJ_intra_nonCSPCa = LIJ_intra[LIJ_intra$CSPCa==0,]
+LIJ_intra_MRIundetectableCSPCa = LIJ_intra[LIJ_intra$CSPCa>0 & LIJ_intra$PIRADS<3,]
+
+test_intra_MRIdetectableCSPCa = test_intra[test_intra$CSPCa>0 & test_intra$PIRADS>2 & NOTNA_id,]
+test_intra_nonCSPCa = test_intra[test_intra$CSPCa==0 & NOTNA_id,]
+test_intra_MRIundetectableCSPCa = test_intra[test_intra$CSPCa>0 & test_intra$PIRADS<3 & NOTNA_id,]
+
+intra_MRIdetectableCSPCa = rbind(LIJ_intra_MRIdetectableCSPCa[,stablefeatureNames],test_intra_MRIdetectableCSPCa[,stablefeatureNames])
+intra_nonCSPCa = rbind(LIJ_intra_nonCSPCa[,stablefeatureNames],test_intra_nonCSPCa[,stablefeatureNames])
+intra_MRIundetectableCSPCa = rbind(LIJ_intra_MRIundetectableCSPCa[,stablefeatureNames],test_intra_MRIundetectableCSPCa[,stablefeatureNames])
+
+intra_MRIdetectCSPCa_nonPCa = rbind(intra_MRIdetectableCSPCa, intra_nonCSPCa)
+intra_MRIdetectCSPCa_nonPCa$CSPCa = c(LIJ_intra_MRIdetectableCSPCa$CSPCa,
+                                            test_intra_MRIdetectableCSPCa$CSPCa,
+                                            LIJ_intra_nonCSPCa$CSPCa,
+                                            test_intra_nonCSPCa$CSPCa)
+
+intra_MRIundetectCSPCa_nonPCa = rbind(intra_MRIundetectableCSPCa, intra_nonCSPCa)
+intra_MRIundetectCSPCa_nonPCa$CSPCa = c(LIJ_intra_MRIundetectableCSPCa$CSPCa,
+                                            test_intra_MRIundetectableCSPCa$CSPCa,
+                                            LIJ_intra_nonCSPCa$CSPCa,
+                                            test_intra_nonCSPCa$CSPCa)
+
+
+LIJ_peri_MRIdetectableCSPCa = LIJ_peri[LIJ_intra$CSPCa>0 & LIJ_intra$PIRADS>2,]
+LIJ_peri_nonCSPCa = LIJ_peri[LIJ_intra$CSPCa==0,]
+LIJ_peri_MRIundetectableCSPCa = LIJ_peri[LIJ_intra$CSPCa>0 & LIJ_intra$PIRADS<3,]
+
+test_peri_MRIdetectableCSPCa = test_peri[test_intra$CSPCa>0 & test_intra$PIRADS>2 & NOTNA_id,]
+test_peri_nonCSPCa = test_peri[test_intra$CSPCa==0 & NOTNA_id,]
+test_peri_MRIundetectableCSPCa = test_peri[test_intra$CSPCa>0 & test_intra$PIRADS<3 & NOTNA_id,]
+
+peri_MRIdetectableCSPCa = rbind(LIJ_peri_MRIdetectableCSPCa[,stablefeatureNames],test_peri_MRIdetectableCSPCa[,stablefeatureNames])
+peri_nonCSPCa = rbind(LIJ_peri_nonCSPCa[,stablefeatureNames],test_peri_nonCSPCa[,stablefeatureNames])
+peri_MRIundetectableCSPCa = rbind(LIJ_peri_MRIundetectableCSPCa[,stablefeatureNames],test_peri_MRIundetectableCSPCa[,stablefeatureNames])
+
+peri_MRIdetectCSPCa_nonPCa = rbind(peri_MRIdetectableCSPCa, peri_nonCSPCa)
+peri_MRIdetectCSPCa_nonPCa$CSPCa = intra_MRIdetectCSPCa_nonPCa$CSPCa
+peri_MRIundetectCSPCa_nonPCa = rbind(peri_MRIundetectableCSPCa, peri_nonCSPCa)
+peri_MRIundetectCSPCa_nonPCa$CSPCa = intra_MRIundetectCSPCa_nonPCa$CSPCa
+
+
+
+```
+
+```{r get only T2 and ADC data intra}
+intra_T2_MRIdetectCSPCa_nonPCa = intra_MRIdetectCSPCa_nonPCa[,1:120]
+intra_T2_MRIdetectCSPCa_nonPCa$CSPCa = c(LIJ_intra_MRIdetectableCSPCa$CSPCa,
+                                            test_intra_MRIdetectableCSPCa$CSPCa,
+                                            LIJ_intra_nonCSPCa$CSPCa,
+                                            test_intra_nonCSPCa$CSPCa)
+
+intra_T2_MRIdetectCSPCa_nonPCa$PIRADS = c(LIJ_intra_MRIdetectableCSPCa$PIRADS,
+                                            test_intra_MRIdetectableCSPCa$PIRADS,
+                                            LIJ_intra_nonCSPCa$PIRADS,
+                                            test_intra_nonCSPCa$PIRADS)
+
+intra_T2_MRIdetectCSPCa_nonPCa$PatientID = c(LIJ_intra_MRIdetectableCSPCa$PatientID,
+                                            test_intra_MRIdetectableCSPCa$PatientID,
+                                            LIJ_intra_nonCSPCa$PatientID,
+                                            test_intra_nonCSPCa$PatientID)
+
+
+
+intra_ADC_MRIdetectCSPCa_nonPCa = intra_MRIdetectCSPCa_nonPCa[,121:177]
+intra_ADC_MRIdetectCSPCa_nonPCa$CSPCa = c(LIJ_intra_MRIdetectableCSPCa$CSPCa,
+                                            test_intra_MRIdetectableCSPCa$CSPCa,
+                                            LIJ_intra_nonCSPCa$CSPCa,
+                                            test_intra_nonCSPCa$CSPCa)
+intra_ADC_MRIdetectCSPCa_nonPCa$PIRADS = c(LIJ_intra_MRIdetectableCSPCa$PIRADS,
+                                            test_intra_MRIdetectableCSPCa$PIRADS,
+                                            LIJ_intra_nonCSPCa$PIRADS,
+                                            test_intra_nonCSPCa$PIRADS)
+intra_ADC_MRIdetectCSPCa_nonPCa$PatientID = c(LIJ_intra_MRIdetectableCSPCa$PatientID,
+                                            test_intra_MRIdetectableCSPCa$PatientID,
+                                            LIJ_intra_nonCSPCa$PatientID,
+                                            test_intra_nonCSPCa$PatientID)
+
+
+
+intra_T2_MRIundetectCSPCa_nonPCa = intra_MRIundetectCSPCa_nonPCa[,1:120]
+intra_T2_MRIundetectCSPCa_nonPCa$CSPCa = c(LIJ_intra_MRIundetectableCSPCa$CSPCa,
+                                            test_intra_MRIundetectableCSPCa$CSPCa,
+                                            LIJ_intra_nonCSPCa$CSPCa,
+                                            test_intra_nonCSPCa$CSPCa)
+intra_T2_MRIundetectCSPCa_nonPCa$PIRADS = c(LIJ_intra_MRIundetectableCSPCa$PIRADS,
+                                            test_intra_MRIundetectableCSPCa$PIRADS,
+                                            LIJ_intra_nonCSPCa$PIRADS,
+                                            test_intra_nonCSPCa$PIRADS)
+intra_T2_MRIundetectCSPCa_nonPCa$PatientID = c(LIJ_intra_MRIundetectableCSPCa$PatientID,
+                                            test_intra_MRIundetectableCSPCa$PatientID,
+                                            LIJ_intra_nonCSPCa$PatientID,
+                                            test_intra_nonCSPCa$PatientID)
+
+
+intra_ADC_MRIundetectCSPCa_nonPCa = intra_MRIundetectCSPCa_nonPCa[,121:177]
+intra_ADC_MRIundetectCSPCa_nonPCa$CSPCa = c(LIJ_intra_MRIundetectableCSPCa$CSPCa,
+                                            test_intra_MRIundetectableCSPCa$CSPCa,
+                                            LIJ_intra_nonCSPCa$CSPCa,
+                                            test_intra_nonCSPCa$CSPCa)
+intra_ADC_MRIundetectCSPCa_nonPCa$PIRADS = c(LIJ_intra_MRIundetectableCSPCa$PIRADS,
+                                            test_intra_MRIundetectableCSPCa$PIRADS,
+                                            LIJ_intra_nonCSPCa$PIRADS,
+                                            test_intra_nonCSPCa$PIRADS)
+intra_ADC_MRIundetectCSPCa_nonPCa$PatientID = c(LIJ_intra_MRIundetectableCSPCa$PatientID,
+                                            test_intra_MRIundetectableCSPCa$PatientID,
+                                            LIJ_intra_nonCSPCa$PatientID,
+                                            test_intra_nonCSPCa$PatientID)
+
+
+
+
+
+intra_all = rbind(intra_MRIundetectableCSPCa,
+                     intra_MRIdetectableCSPCa, 
+                     intra_nonCSPCa)
+
+intra_T2_all = intra_all[,1:120]
+intra_T2_all$CSPCa = c(LIJ_intra_MRIundetectableCSPCa$CSPCa,
+                      test_intra_MRIundetectableCSPCa$CSPCa,
+                      LIJ_intra_MRIdetectableCSPCa$CSPCa,
+                      test_intra_MRIdetectableCSPCa$CSPCa,
+                      LIJ_intra_nonCSPCa$CSPCa,
+                      test_intra_nonCSPCa$CSPCa)
+
+intra_T2_all$PIRADS = c(LIJ_intra_MRIundetectableCSPCa$PIRADS,
+                      test_intra_MRIundetectableCSPCa$PIRADS,
+                      LIJ_intra_MRIdetectableCSPCa$PIRADS,
+                      test_intra_MRIdetectableCSPCa$PIRADS,
+                      LIJ_intra_nonCSPCa$PIRADS,
+                      test_intra_nonCSPCa$PIRADS)
+
+intra_T2_all$PatientID = c(LIJ_intra_MRIundetectableCSPCa$PatientID,
+                      test_intra_MRIundetectableCSPCa$PatientID,
+                      LIJ_intra_MRIdetectableCSPCa$PatientID,
+                      test_intra_MRIdetectableCSPCa$PatientID,
+                      LIJ_intra_nonCSPCa$PatientID,
+                      test_intra_nonCSPCa$PatientID)
+
+
+intra_ADC_all = intra_all[,121:177]
+intra_ADC_all$CSPCa = intra_T2_all$CSPCa
+intra_ADC_all$PatientID = intra_T2_all$PatientID 
+
+peri_all = rbind(peri_MRIundetectableCSPCa,
+                 peri_MRIdetectableCSPCa, 
+                 peri_nonCSPCa)
+
+peri_T2_all = peri_all[,1:120]
+peri_T2_all$CSPCa = intra_T2_all$CSPCa
+peri_T2_all$PatientID = intra_T2_all$PatientID
+peri_ADC_all = peri_all[,121:177]
+peri_ADC_all$CSPCa = intra_T2_all$CSPCa
+peri_ADC_all$PatientID = intra_T2_all$PatientID
+
+```
+
+```{r get only T2 and ADC data peri}
+peri_T2_MRIdetectCSPCa_nonPCa = peri_MRIdetectCSPCa_nonPCa[,1:120]
+peri_T2_MRIdetectCSPCa_nonPCa$CSPCa = c(LIJ_peri_MRIdetectableCSPCa$CSPCa,
+                                            test_peri_MRIdetectableCSPCa$CSPCa,
+                                            LIJ_peri_nonCSPCa$CSPCa,
+                                            test_peri_nonCSPCa$CSPCa)
+
+peri_T2_MRIdetectCSPCa_nonPCa$PIRADS = c(LIJ_peri_MRIdetectableCSPCa$PIRADS,
+                                            test_peri_MRIdetectableCSPCa$PIRADS,
+                                            LIJ_peri_nonCSPCa$PIRADS,
+                                            test_peri_nonCSPCa$PIRADS)
+peri_T2_MRIdetectCSPCa_nonPCa$PatientID = c(LIJ_peri_MRIdetectableCSPCa$PatientID,
+                                            test_peri_MRIdetectableCSPCa$PatientID,
+                                            LIJ_peri_nonCSPCa$PatientID,
+                                            test_peri_nonCSPCa$PatientID)
+
+
+peri_ADC_MRIdetectCSPCa_nonPCa = peri_MRIdetectCSPCa_nonPCa[,121:177]
+peri_ADC_MRIdetectCSPCa_nonPCa$CSPCa = c(LIJ_peri_MRIdetectableCSPCa$CSPCa,
+                                            test_peri_MRIdetectableCSPCa$CSPCa,
+                                            LIJ_peri_nonCSPCa$CSPCa,
+                                            test_peri_nonCSPCa$CSPCa)
+peri_ADC_MRIdetectCSPCa_nonPCa$PIRADS = c(LIJ_peri_MRIdetectableCSPCa$PIRADS,
+                                            test_peri_MRIdetectableCSPCa$PIRADS,
+                                            LIJ_peri_nonCSPCa$PIRADS,
+                                            test_peri_nonCSPCa$PIRADS)
+peri_ADC_MRIdetectCSPCa_nonPCa$PatientID = c(LIJ_peri_MRIdetectableCSPCa$PatientID,
+                                            test_peri_MRIdetectableCSPCa$PatientID,
+                                            LIJ_peri_nonCSPCa$PatientID,
+                                            test_peri_nonCSPCa$PatientID)
+
+
+
+peri_T2_MRIundetectCSPCa_nonPCa = peri_MRIundetectCSPCa_nonPCa[,1:120]
+peri_T2_MRIundetectCSPCa_nonPCa$CSPCa = c(LIJ_peri_MRIundetectableCSPCa$CSPCa,
+                                            test_peri_MRIundetectableCSPCa$CSPCa,
+                                            LIJ_peri_nonCSPCa$CSPCa,
+                                            test_peri_nonCSPCa$CSPCa)
+peri_T2_MRIundetectCSPCa_nonPCa$PIRADS = c(LIJ_peri_MRIundetectableCSPCa$PIRADS,
+                                            test_peri_MRIundetectableCSPCa$PIRADS,
+                                            LIJ_peri_nonCSPCa$PIRADS,
+                                            test_peri_nonCSPCa$PIRADS)
+peri_T2_MRIundetectCSPCa_nonPCa$PatientID = c(LIJ_peri_MRIundetectableCSPCa$PatientID,
+                                            test_peri_MRIundetectableCSPCa$PatientID,
+                                            LIJ_peri_nonCSPCa$PatientID,
+                                            test_peri_nonCSPCa$PatientID)
+
+
+peri_ADC_MRIundetectCSPCa_nonPCa = peri_MRIundetectCSPCa_nonPCa[,121:177]
+peri_ADC_MRIundetectCSPCa_nonPCa$CSPCa = c(LIJ_peri_MRIundetectableCSPCa$CSPCa,
+                                            test_peri_MRIundetectableCSPCa$CSPCa,
+                                            LIJ_peri_nonCSPCa$CSPCa,
+                                            test_peri_nonCSPCa$CSPCa)
+peri_ADC_MRIundetectCSPCa_nonPCa$PIRADS = c(LIJ_peri_MRIundetectableCSPCa$PIRADS,
+                                            test_peri_MRIundetectableCSPCa$PIRADS,
+                                            LIJ_peri_nonCSPCa$PIRADS,
+                                            test_peri_nonCSPCa$PIRADS)
+peri_ADC_MRIundetectCSPCa_nonPCa$PatientID = c(LIJ_peri_MRIundetectableCSPCa$PatientID,
+                                            test_peri_MRIundetectableCSPCa$PatientID,
+                                            LIJ_peri_nonCSPCa$PatientID,
+                                            test_peri_nonCSPCa$PatientID)
+
+
+```
+
+
+
+
+```{r training classifiers T2 with mixed logistic regression}
+set.seed(123)
+cvfit_intra_T2_MRIdetectCSPCa_nonPCa = cv.glmnet(as.matrix(intra_T2_MRIdetectCSPCa_nonPCa[,T2_stableNames]), 
+                                                 y=intra_T2_MRIdetectCSPCa_nonPCa$CSPCa, alpha = 0.5,nfolds = 10, family = "binomial")
+plot(cvfit_intra_T2_MRIdetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_intra_T2_MRIdetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa = T2_stableNames[index[-1]-1]
+
+
+set.seed(123)
+cvfit_peri_T2_MRIdetectCSPCa_nonPCa = cv.glmnet(as.matrix(peri_T2_MRIdetectCSPCa_nonPCa[,T2_stableNames]), 
+                                                y=peri_T2_MRIdetectCSPCa_nonPCa$CSPCa, alpha = 0.5,nfolds = 10, family = "binomial")
+plot(cvfit_peri_T2_MRIdetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_peri_T2_MRIdetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_peri_T2_MRIdetectCSPCa_nonPCa = T2_stableNames[index[-1]-1]
+
+
+set.seed(123)
+cvfit_intra_T2_MRIundetectCSPCa_nonPCa = cv.glmnet(as.matrix(intra_T2_MRIundetectCSPCa_nonPCa[,T2_stableNames]), 
+                                                   y=intra_T2_MRIundetectCSPCa_nonPCa$CSPCa, alpha = 0.5,nfolds = 3, family = "binomial")
+plot(cvfit_intra_T2_MRIundetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_intra_T2_MRIundetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa = T2_stableNames[index[-1]-1]
+
+
+set.seed(123)
+cvfit_peri_T2_MRIundetectCSPCa_nonPCa = cv.glmnet(as.matrix(peri_T2_MRIundetectCSPCa_nonPCa[,T2_stableNames]), 
+                                                  y=peri_T2_MRIundetectCSPCa_nonPCa$CSPCa, alpha = 0.5,nfolds = 3, family = "binomial")
+plot(cvfit_peri_T2_MRIundetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_peri_T2_MRIundetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_peri_T2_MRIundetectCSPCa_nonPCa = T2_stableNames[index[-1]-1]
+
+```
+
+
+```{r combine peri and intra T2 train}
+set.seed(123)
+selectedfeatureName_T2_MRIdetect_all = c(selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa,
+                                     selectedfeatureName_peri_T2_MRIdetectCSPCa_nonPCa)
+
+## use mixed logistic regression model using identified radiomic features
+train_T2_MRIdetect = cbind(intra_T2_all[,selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa],
+                        peri_T2_all[,selectedfeatureName_peri_T2_MRIdetectCSPCa_nonPCa])
+
+
+cvfit_intra_T2_MRIdetect = cv.glmnet(as.matrix(train_T2_MRIdetect), 
+                                     y=intra_T2_all$CSPCa, alpha = 0.5, family = "binomial")
+
+plot(cvfit_intra_T2_MRIdetect)
+coefficents = as.matrix(coef(cvfit_intra_T2_MRIdetect, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_T2_MRIdetect = selectedfeatureName_T2_MRIdetect_all[index[-1]-1]
+
+variables = paste(selectedfeatureName_T2_MRIdetect, collapse="+")
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_T2_MRIdetect$CSPCa = intra_T2_all$CSPCa
+train_T2_MRIdetect$PIRADS = intra_T2_all$PIRADS
+train_T2_MRIdetect$PatientID = intra_T2_all$PatientID
+
+
+fit_T2_MRIdetectCSPCa<- glmer(model, data = train_T2_MRIdetect, family = binomial, 
+                                            control = glmerControl(optimizer = "bobyqa"), nAGQ = 5)
+
+p_train_T2_MRIdetectCSPCa = predict(fit_T2_MRIdetectCSPCa, 
+                                                 newdata = train_T2_MRIdetect,type="response")
+
+pROC_obj <- roc(train_T2_MRIdetect$CSPCa,p_train_T2_MRIdetectCSPCa,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train T2 MRIdetected")
+
+
+val_T2_MRIdetect = cbind(validation_T2_intra[,selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa],
+                        validation_T2_peri[,selectedfeatureName_peri_T2_MRIdetectCSPCa_nonPCa])
+val_T2_MRIdetect$CSPCa = validation_intra$CSPCa
+val_T2_MRIdetect$PatientID = validation_intra$PatientID
+
+p_val_T2_MRIdetect = predict(fit_T2_MRIdetectCSPCa, allow.new.levels = TRUE,
+                                                 newdata = val_T2_MRIdetect,type="response")
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_T2_MRIdetect,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val T2 MRIdetected")
+
+#############################################   t2 undetected ##########################
+
+set.seed(123)
+selectedfeatureName_T2_MRIundetect = c(selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa,
+                                     selectedfeatureName_peri_T2_MRIundetectCSPCa_nonPCa)
+train_T2_MRIundetect = cbind(intra_T2_all[,selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa],
+                        peri_T2_all[,selectedfeatureName_peri_T2_MRIundetectCSPCa_nonPCa])
+
+cvfit_T2_MRIundetect = cv.glmnet(as.matrix(train_T2_MRIundetect), 
+                                     y=intra_T2_all$CSPCa, alpha = 0.5, family = "binomial")
+
+plot(cvfit_T2_MRIundetect)
+coefficents = as.matrix(coef(cvfit_T2_MRIundetect, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_T2_MRIundetect = selectedfeatureName_T2_MRIundetect[index[-1]-1]
+
+variables = paste(selectedfeatureName_T2_MRIundetect, collapse="+")
+
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_T2_MRIundetect$CSPCa = intra_T2_all$CSPCa
+train_T2_MRIundetect$PatientID = intra_T2_all$PatientID
+
+
+fit_T2_MRIundetectCSPCa<- glmer(model, data = train_T2_MRIundetect, family = binomial, 
+                                            control = glmerControl(optimizer = "bobyqa"), nAGQ = 5)
+
+p_train_T2_MRIundetectCSPCa = predict(fit_T2_MRIundetectCSPCa, 
+                                                 newdata = train_T2_MRIundetect,type="response")
+
+pROC_obj <- roc(intra_T2_all$CSPCa,p_train_T2_MRIundetectCSPCa,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train T2 MRIundetected")
+
+
+val_T2_MRIundetect = cbind(validation_T2_intra[,selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa],
+                        validation_T2_peri[,selectedfeatureName_peri_T2_MRIundetectCSPCa_nonPCa])
+val_T2_MRIundetect$CSPCa = validation_intra$CSPCa
+val_T2_MRIundetect$PatientID = validation_intra$PatientID
+
+p_val_T2_MRIundetect = predict(fit_T2_MRIundetectCSPCa, allow.new.levels = TRUE,
+                                                 newdata = val_T2_MRIundetect,type="response")
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_T2_MRIundetect,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val T2 MRIundetected")
+
+############################################## T2 together ##########################################################
+
+set.seed(123)
+selectedfeatureName_T2 = c(selectedfeatureName_T2_MRIdetect,
+                                     selectedfeatureName_T2_MRIundetect)
+train_T2 = cbind(train_T2_MRIdetect[,selectedfeatureName_T2_MRIdetect],
+                 train_T2_MRIundetect[,selectedfeatureName_T2_MRIundetect])
+  
+
+cvfit_T2 = cv.glmnet(as.matrix(train_T2), 
+                    y=intra_T2_all$CSPCa, alpha = 1, family = "binomial")
+
+plot(cvfit_T2)
+coefficents = as.matrix(coef(cvfit_T2, s = "lambda.min"))
+index = which(coefficents!=0)
+
+selectedfeatureName_T2 = selectedfeatureName_T2[index[-1]-1]
+
+variables = paste(selectedfeatureName_T2, collapse="+")
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_T2$CSPCa = intra_T2_all$CSPCa
+train_T2$PatientID = intra_T2_all$PatientID
+
+
+fit_T2_all<- glmer(model, data = train_T2, family = binomial, 
+                  control = glmerControl(optimizer = "bobyqa"), nAGQ = 1)
+
+p_train_T2_all = predict(fit_T2_all, 
+                          newdata = train_T2, type="response")
+
+pROC_obj <- roc(intra_T2_all$CSPCa,p_train_T2_all,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train T2 all")
+
+
+val_t2_all = cbind(val_T2_MRIdetect[,selectedfeatureName_T2_MRIdetect],
+                 val_T2_MRIundetect[,selectedfeatureName_T2_MRIundetect])
+
+val_t2_all$CSPCa = validation_intra$CSPCa
+val_t2_all$PatientID = validation_intra$PatientID
+
+p_val_T2_all = predict(fit_T2_all, allow.new.levels = TRUE,
+                                                 newdata = val_t2_all,type="response")
+
+#p_val_T2_all = p_val_T2_MRIundetect * (validation_intra$PIRADS < 3) +
+                #p_val_T2_MRIdetect * (validation_intra$PIRADS > 2)
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_T2_all,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val t2_all")
+
+
+```
+
+```{r training classifiers ADC}
+set.seed(123)
+cvfit_intra_ADC_MRIdetectCSPCa_nonPCa = cv.glmnet(as.matrix(intra_ADC_MRIdetectCSPCa_nonPCa[,ADC_stableNames]), 
+                                                 y=intra_ADC_MRIdetectCSPCa_nonPCa$CSPCa, alpha = 1, family = "binomial")
+plot(cvfit_intra_ADC_MRIdetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_intra_ADC_MRIdetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa = ADC_stableNames[index[-1]-1]
+
+
+
+set.seed(123)
+cvfit_peri_ADC_MRIdetectCSPCa_nonPCa = cv.glmnet(as.matrix(peri_ADC_MRIdetectCSPCa_nonPCa[,ADC_stableNames]), 
+                                                y=peri_ADC_MRIdetectCSPCa_nonPCa$CSPCa, alpha = 1, family = "binomial")
+plot(cvfit_peri_ADC_MRIdetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_peri_ADC_MRIdetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_peri_ADC_MRIdetectCSPCa_nonPCa = ADC_stableNames[index[-1]-1]
+
+
+
+set.seed(123)
+cvfit_intra_ADC_MRIundetectCSPCa_nonPCa = cv.glmnet(as.matrix(intra_ADC_MRIundetectCSPCa_nonPCa[,ADC_stableNames]), 
+                                                   y=intra_ADC_MRIundetectCSPCa_nonPCa$CSPCa, alpha = 1, family = "binomial")
+plot(cvfit_intra_ADC_MRIundetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_intra_ADC_MRIundetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa = ADC_stableNames[index[-1]-1]
+
+
+
+set.seed(123)
+cvfit_peri_ADC_MRIundetectCSPCa_nonPCa = cv.glmnet(as.matrix(peri_ADC_MRIundetectCSPCa_nonPCa[,ADC_stableNames]), 
+                                                  y=peri_ADC_MRIundetectCSPCa_nonPCa$CSPCa, alpha = 1, family = "binomial")
+plot(cvfit_peri_ADC_MRIundetectCSPCa_nonPCa)
+coefficents = as.matrix(coef(cvfit_peri_ADC_MRIundetectCSPCa_nonPCa, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_peri_ADC_MRIundetectCSPCa_nonPCa = ADC_stableNames[index[-1]-1]
+
+
+
+```
+
+
+```{r combine peri and intra ADC train}
+set.seed(123)
+selectedfeatureName_ADC_MRIdetect_all = c(selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa,
+                                     selectedfeatureName_peri_ADC_MRIdetectCSPCa_nonPCa)
+
+## use mixed logistic regression model using identified radiomic features
+train_ADC_MRIdetect = cbind(intra_ADC_all[,selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa],
+                        peri_ADC_all[,selectedfeatureName_peri_ADC_MRIdetectCSPCa_nonPCa])
+
+
+cvfit_intra_ADC_MRIdetect = cv.glmnet(as.matrix(train_ADC_MRIdetect), 
+                                     y=intra_ADC_all$CSPCa, alpha = 1, family = "binomial")
+
+plot(cvfit_intra_ADC_MRIdetect)
+coefficents = as.matrix(coef(cvfit_intra_T2_MRIdetect, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_ADC_MRIdetect = selectedfeatureName_ADC_MRIdetect_all[index[-1]-1]
+
+variables = paste(selectedfeatureName_ADC_MRIdetect, collapse="+")
+
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_ADC_MRIdetect$CSPCa = intra_ADC_all$CSPCa
+train_ADC_MRIdetect$PIRADS = intra_ADC_all$PIRADS
+train_ADC_MRIdetect$PatientID = intra_ADC_all$PatientID
+
+
+fit_ADC_MRIdetectCSPCa<- glmer(model, data = train_ADC_MRIdetect, family = binomial, 
+                                            control = glmerControl(optimizer = "bobyqa"), nAGQ = 5)
+
+p_train_ADC_MRIdetectCSPCa = predict(fit_ADC_MRIdetectCSPCa, 
+                                                 newdata = train_ADC_MRIdetect,type="response")
+
+pROC_obj <- roc(train_ADC_MRIdetect$CSPCa,p_train_ADC_MRIdetectCSPCa,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train ADC MRIdetected")
+
+
+val_ADC_MRIdetect = cbind(validation_ADC_intra[,selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa],
+                        validation_ADC_peri[,selectedfeatureName_peri_ADC_MRIdetectCSPCa_nonPCa])
+val_ADC_MRIdetect$CSPCa = validation_intra$CSPCa
+val_ADC_MRIdetect$PatientID = validation_intra$PatientID
+
+p_val_ADC_MRIdetect= predict(fit_ADC_MRIdetectCSPCa, allow.new.levels = TRUE,
+                                                 newdata = val_ADC_MRIdetect,type="response")
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_ADC_MRIdetect,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val ADC MRIdetected")
+
+#############################################   adc undetected ##########################
+set.seed(123)
+selectedfeatureName_ADC_MRIundetect_all = c(selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa,
+                                     selectedfeatureName_peri_ADC_MRIundetectCSPCa_nonPCa)
+
+## use mixed logistic regression model using identified radiomic features
+train_ADC_MRIundetect = cbind(intra_ADC_all[,selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa],
+                        peri_ADC_all[,selectedfeatureName_peri_ADC_MRIundetectCSPCa_nonPCa])
+
+
+cvfit_intra_ADC_MRIundetect = cv.glmnet(as.matrix(train_ADC_MRIundetect), 
+                                     y=intra_ADC_all$CSPCa, alpha = 1, family = "binomial")
+
+plot(cvfit_intra_ADC_MRIundetect)
+coefficents = as.matrix(coef(cvfit_intra_ADC_MRIundetect, s = "lambda.min"))
+index = which(coefficents!=0)
+selectedfeatureName_ADC_MRIundetect = selectedfeatureName_ADC_MRIundetect_all[index[-1]-1]
+
+variables = paste(selectedfeatureName_ADC_MRIundetect, collapse="+")
+
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_ADC_MRIundetect$CSPCa = intra_ADC_all$CSPCa
+train_ADC_MRIundetect$PatientID = intra_ADC_all$PatientID
+
+
+fit_ADC_MRIundetectCSPCa<- glmer(model, data = train_ADC_MRIundetect, family = binomial, 
+                                            control = glmerControl(optimizer = "bobyqa"), nAGQ = 5)
+
+p_train_ADC_MRIundetectCSPCa = predict(fit_ADC_MRIundetectCSPCa, 
+                                                 newdata = train_ADC_MRIundetect,type="response")
+
+pROC_obj <- roc(intra_ADC_all$CSPCa,p_train_ADC_MRIundetectCSPCa,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train T2 MRIundetected")
+
+
+val_ADC_MRIundetect = cbind(validation_ADC_intra[,selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa],
+                       validation_ADC_peri[,selectedfeatureName_peri_ADC_MRIundetectCSPCa_nonPCa])
+
+val_ADC_MRIundetect$CSPCa = validation_intra$CSPCa
+val_ADC_MRIundetect$PatientID = validation_intra$PatientID
+
+p_val_ADC_MRIundetect = predict(fit_ADC_MRIundetectCSPCa, allow.new.levels = TRUE,
+                                                 newdata = val_ADC_MRIundetect,type="response")
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_ADC_MRIundetect,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val ADC MRIundetected")
+
+############################################## adc together ##########################################################
+set.seed(123)
+selectedfeatureName_ADC = c(selectedfeatureName_ADC_MRIdetect,
+                                     selectedfeatureName_ADC_MRIundetect)
+train_ADC = cbind(train_ADC_MRIdetect[,selectedfeatureName_ADC_MRIdetect],
+                 train_ADC_MRIundetect[,selectedfeatureName_ADC_MRIundetect])
+  
+
+cvfit_ADC = cv.glmnet(as.matrix(train_ADC), 
+                    y=intra_ADC_all$CSPCa, alpha = 1, family = "binomial")
+
+plot(cvfit_ADC)
+coefficents = as.matrix(coef(cvfit_ADC, s = "lambda.min"))
+index = which(coefficents!=0)
+
+selectedfeatureName_ADC = selectedfeatureName_ADC[index[-1]-1]
+
+variables = paste(selectedfeatureName_ADC, collapse="+")
+
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_ADC$CSPCa = intra_ADC_all$CSPCa
+train_ADC$PatientID = intra_ADC_all$PatientID
+
+
+fit_ADC_all<- glmer(model, data = train_ADC, family = binomial, 
+                                            control = glmerControl(optimizer = "bobyqa"), nAGQ = 1)
+
+p_train_ADC_all = predict(fit_ADC_all, 
+                          newdata = train_ADC,type="response")
+
+pROC_obj <- roc(intra_ADC_all$CSPCa,p_train_ADC_all,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train ADC all")
+
+val_ADC_all = cbind(val_ADC_MRIdetect[,selectedfeatureName_ADC_MRIdetect],
+                 val_ADC_MRIundetect[,selectedfeatureName_ADC_MRIundetect])
+
+
+val_ADC_all$CSPCa = validation_intra$CSPCa
+val_ADC_all$PatientID = validation_intra$PatientID
+
+p_val_ADC_all = predict(fit_ADC_all, allow.new.levels = TRUE,
+                                                 newdata = val_ADC_all,type="response")
+
+p_val_ADC_all = p_val_ADC_MRIundetect * (validation_intra$PIRADS < 3) +
+                p_val_ADC_MRIdetect * (validation_intra$PIRADS > 2)
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_ADC_all,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val ADC_all")
+
+
+```
+
+
+
+
+```{r combine prediction}
+p_validation_MRIdetect = pmax(p_val_T2_MRIdetect, p_val_ADC_MRIdetect)
+p_validation_MRIundetect = pmax(p_val_T2_MRIundetect, p_val_ADC_MRIundetect)
+p_validation = pmax(p_val_T2_all, p_val_ADC_all)
+
+
+pROC_obj <- roc(validation_peri$CSPCa,p_validation_MRIdetect,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "validation MRIdetect")
+
+
+pROC_obj <- roc(validation_peri$CSPCa,p_validation_MRIundetect,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "validation MRIundetect")
+
+
+pROC_obj <- roc(validation_peri$CSPCa,p_validation,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "validation")
+
+radiomic_data = data.frame("T2MRI_DETECT" =  p_val_T2_MRIdetect, "T2MRI_UNDETECT" = p_val_T2_MRIundetect, 
+                           "ADCMRI_DETECT" =  p_val_ADC_MRIdetect, "ADCMRI_UNDETECT" = p_val_ADC_MRIundetect, 
+                           "T2MRI" = p_val_T2_all, "ADC" = p_val_ADC_all, 
+                            label = validation_intra$CSPCa)
+
+covariates <- c("T2MRI_DETECT","T2MRI_UNDETECT")
+variables = paste(covariates , collapse="+")
+var_models <- glm(as.formula(paste("label~", variables) ),data = radiomic_data)
+summary(var_models)
+
+covariates <- c("ADCMRI_DETECT","ADCMRI_UNDETECT")
+variables = paste(covariates , collapse="+")
+var_models <- glm(as.formula(paste("label~", variables) ),data = radiomic_data)
+summary(var_models)
+
+covariates <- c("T2MRI","ADC")
+variables = paste(covariates , collapse="+")
+var_models <- glm(as.formula(paste("label~", variables) ),data = radiomic_data)
+summary(var_models)
+
+
+```
+```{r combine ONLY intra train}
+set.seed(123)
+selectedfeatureName_T2_intra = c(selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa,
+                                     selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa)
+train_T2_intra = cbind(train_T2_MRIdetect[,selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa],
+                 train_T2_MRIundetect[,selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa])
+  
+
+cvfit_T2_intra = cv.glmnet(as.matrix(train_T2_intra), 
+                    y=intra_T2_all$CSPCa, alpha = 1, family = "binomial")
+
+plot(cvfit_T2_intra)
+coefficents = as.matrix(coef(cvfit_T2_intra, s = "lambda.min"))
+index = which(coefficents!=0)
+
+selectedfeatureName_T2_intra = selectedfeatureName_T2_intra[index[-1]-1]
+
+variables = paste(selectedfeatureName_T2_intra, collapse="+")
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_T2_intra$CSPCa = intra_T2_all$CSPCa
+train_T2_intra$PatientID = intra_T2_all$PatientID
+
+
+fit_T2_all_intra<- glmer(model, data = train_T2_intra, family = binomial, 
+                  control = glmerControl(optimizer = "bobyqa"), nAGQ = 1)
+
+p_train_T2_intra = predict(fit_T2_all_intra, 
+                          newdata = train_T2_intra, type="response")
+
+pROC_obj <- roc(intra_T2_all$CSPCa,p_train_T2_intra,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train T2 _intra")
+
+
+val_t2_intra = cbind(val_T2_MRIdetect[,selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa],
+                 val_T2_MRIundetect[,selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa])
+
+val_t2_intra$CSPCa = validation_intra$CSPCa
+val_t2_intra$PatientID = validation_intra$PatientID
+
+p_val_T2_intra = predict(fit_T2_all_intra, allow.new.levels = TRUE,
+                                                 newdata = val_t2_intra,type="response")
+
+#p_val_T2_all = p_val_T2_MRIundetect * (validation_intra$PIRADS < 3) +
+                #p_val_T2_MRIdetect * (validation_intra$PIRADS > 2)
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_T2_intra,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val t2_intra")
+######################################################################################################################
+
+
+set.seed(123)
+selectedfeatureName_ADC_intra = c(selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa,
+                                     selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa)
+train_ADC_intra = cbind(train_ADC_MRIdetect[,selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa],
+                 train_ADC_MRIundetect[,selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa])
+  
+
+cvfit_ADC_intra = cv.glmnet(as.matrix(train_ADC_intra), 
+                    y=intra_ADC_all$CSPCa, alpha = 1, family = "binomial")
+
+plot(cvfit_ADC_intra)
+coefficents = as.matrix(coef(cvfit_ADC_intra, s = "lambda.min"))
+index = which(coefficents!=0)
+
+selectedfeatureName_ADC_intra = selectedfeatureName_ADC_intra[index[-1]-1]
+
+variables = paste(selectedfeatureName_ADC_intra, collapse="+")
+
+model <- as.formula(paste("CSPCa ~", variables,"+","(1 | PatientID) "))
+train_ADC_intra$CSPCa = intra_ADC_all$CSPCa
+train_ADC_intra$PatientID = intra_ADC_all$PatientID
+
+
+fit_ADC_intra<- glmer(model, data = train_ADC_intra, family = binomial, 
+                                            control = glmerControl(optimizer = "bobyqa"), nAGQ = 1)
+
+p_train_ADC_intra = predict(fit_ADC_intra, 
+                          newdata = train_ADC_intra,type="response")
+
+pROC_obj <- roc(train_ADC_intra$CSPCa,p_train_ADC_intra,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "train ADC_intra")
+
+val_ADC_intra = cbind(val_ADC_MRIdetect[,selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa],
+                 val_ADC_MRIundetect[,selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa])
+
+
+val_ADC_intra$CSPCa = validation_intra$CSPCa
+val_ADC_intra$PatientID = validation_intra$PatientID
+
+p_val_ADC_intra = predict(fit_ADC_intra, allow.new.levels = TRUE,
+                                                 newdata = val_ADC_intra,type="response")
+
+
+pROC_obj <- roc(validation_intra$CSPCa,p_val_ADC_intra,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val ADC_intra")
+
+
+###################################################
+p_validation_intra = pmax(p_val_T2_intra, p_val_ADC_intra)
+
+pROC_obj <- roc(validation_intra$CSPCa,p_validation_intra,
+            smoothed = TRUE,
+            # arguments for ci
+            ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+            # arguments for plot
+            plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+            print.auc=TRUE, show.thres=TRUE)
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+title(main = "val intra")
+
+
+```
+
+
+```{r univariate analysis of the selected radiomic features}
+varables =  c(selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa,selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa,'tumorsize')# c( selectedfeatureName_intra_T2_MRIundetectCSPCa_nonPCa,
+             # selectedfeatureName_intra_ADC_MRIundetectCSPCa_nonPCa,
+             # selectedfeatureName_peri_T2_MRIundetectCSPCa_nonPCa,
+             # selectedfeatureName_peri_ADC_MRIundetectCSPCa_nonPCa)
+validation_intra$tumorsize = validation_T2_intra_ori$tumorsize
+
+univ_formulas <- sapply(varables,
+                        function(x) as.formula(paste('CSPCa ~',x)))
+                        
+univ_models <- lapply( univ_formulas, function(x){glm(x,family= binomial,data = validation_intra)})
+# Extract data 
+univ_results <- lapply(univ_models,
+                       function(x){ 
+                          x <- summary(x)
+                          p.value<-signif(x$coefficients[2,4], digits=2)
+                          odds = exp(coef(x))
+                          res<-c( p.value,odds[2])
+                          names(res)<-c("p value","odds")
+                          
+                          return(res)
+                      
+                         })
+
+res <- t(as.data.frame(univ_results, check.names = FALSE))
+as.data.frame(res)
+
+
+
+```
+
+```{r multivariable analysis of the selected radiomic features}
+
+covariates <- c(selectedfeatureName_intra_T2_MRIdetectCSPCa_nonPCa,
+             selectedfeatureName_intra_ADC_MRIdetectCSPCa_nonPCa,
+             selectedfeatureName_peri_T2_MRIdetectCSPCa_nonPCa,
+             selectedfeatureName_peri_ADC_MRIdetectCSPCa_nonPCa,'tumorsize')
+variables = paste(covariates , collapse="+")
+var_models <- glm(as.formula(paste("CSPCa~", variables) ),data =  validation_intra)
+summary(var_models)
+exp(coef(var_models))
+```
+
+```{r summarize results train}
+library(cutpointr)
+LIJ_intra$GGG = LIJ_T2_intra$GGG
+test_intra$GGG = test_T2_intra$GGG
+validation_intra$GGG = validation_T2_intra$GGG
+test_intra = test_intra[NOTNA_id,] 
+test_peri = test_peri[NOTNA_id,] 
+test_T2_intra = test_T2_intra[NOTNA_id,]
+train_intra = rbind(LIJ_intra,test_intra)
+train_peri = rbind(LIJ_peri,test_peri)
+train_intra$CSPCa = as.numeric(train_intra$GGG>1)
+
+```
+
+```{R get cut-off point}
+training_score = pmax(p_train_T2_all, p_train_ADC_all )
+validation_score = p_validation
+
+preResult = data.frame(pred = training_score,label =intra_T2_all$CSPCa)
+preResult_test = data.frame(pred = validation_score,label =validation_peri$CSPCa)
+cp <- cutpointr(preResult, pred, label, 
+                method = maximize_metric, metric = sum_sens_spec,na.rm = TRUE)
+
+summary(cp)
+
+cp_test <- cutpointr(preResult_test, pred, label, 
+                method = maximize_metric, metric = sum_sens_spec)
+
+summary(cp_test)
+confusionMatrix(as.factor(validation_score>cp$optimal_cutpoint), as.factor(validation_intra$CSPCa>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+val_lr = glm(label~ pred,family = binomial, data = preResult_test)
+summary(val_lr)
+exp(coef(val_lr)/10)
+```
+
+
+
+
+```{r reviewer comments}
+# how many mri visible CsPCa were correctly detected by our model; and how many for mri non-visible CSPCa
+confusionMatrix(as.factor(training_score>cp$optimal_cutpoint), as.factor(intra_T2_all$CSPCa>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+confusionMatrix(as.factor(training_score[intra_T2_all$PIRADS>2]>cp$optimal_cutpoint), as.factor(intra_T2_all$CSPCa[intra_T2_all$PIRADS>2]>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+confusionMatrix(as.factor(training_score[intra_T2_all$PIRADS<3]>cp$optimal_cutpoint), as.factor(intra_T2_all$CSPCa[intra_T2_all$PIRADS<3]>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+confusionMatrix(as.factor(validation_score>cp$optimal_cutpoint), as.factor(validation_intra$CSPCa>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+confusionMatrix(as.factor(validation_score[validation_intra$PIRADS>2]>cp$optimal_cutpoint), as.factor(validation_intra$CSPCa[validation_intra$PIRADS>2]>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+confusionMatrix(as.factor(validation_score[validation_intra$PIRADS<3]>cp$optimal_cutpoint), as.factor(validation_intra$CSPCa[validation_intra$PIRADS<3]>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+
+```
+
+```{R get cut-off point ONLY DETECT}
+training_score = pmax(p_train_T2_MRIdetectCSPCa, p_train_ADC_MRIdetectCSPCa )
+validation_score_DETECT =  pmax(p_val_T2_MRIdetect, p_val_ADC_MRIdetect )
+
+preResult = data.frame(pred = training_score,label =intra_T2_all$CSPCa)
+preResult_test = data.frame(pred = validation_score_DETECT,label =validation_peri$CSPCa)
+cp <- cutpointr(preResult, pred, label, 
+                method = maximize_metric, metric = sum_sens_spec,na.rm = TRUE)
+
+summary(cp)
+
+cp_test <- cutpointr(preResult_test, pred, label, 
+                method = maximize_metric, metric = sum_sens_spec)
+
+summary(cp_test)
+confusionMatrix(as.factor(validation_score_DETECT>cp$optimal_cutpoint), as.factor(validation_intra$CSPCa>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+val_lr = glm(label~ pred,family = binomial, data = preResult_test)
+summary(val_lr)
+exp(coef(val_lr)/10)
+```
+
+
+
+
+```{r get confusion matrix for pirads}
+
+preResult_pirads = data.frame(pred =  train_intra$PIRADS,label = train_intra$CSPCa)
+cp_pirads <- cutpointr(preResult_pirads, pred, label, 
+                method = maximize_metric, metric = sum_sens_spec)
+
+#summary(cp_pirads)
+confusionMatrix(as.factor(train_intra$PIRADS>2), as.factor(train_intra$GGG>1), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+preResult_pirads = data.frame(pred =  validation_intra$PIRADS,label = validation_intra$CSPCa)
+cp_pirads <- cutpointr(preResult_pirads, pred, label, method = maximize_metric, metric = sum_sens_spec)
+#summary(cp_pirads)
+confusionMatrix(as.factor(validation_intra$PIRADS>2), as.factor( validation_intra$CSPCa>0), positive ='TRUE', dnn = c("Prediction", "Reference"))
+
+val_lr = glm(label~ pred,family = binomial, data = preResult_pirads )
+summary(val_lr)
+exp(coef(val_lr))
+```
+
+
+```{r decision curve,fig.height= 4, fig.width=6}
+source("dca.r")
+PIRADS_RADIOMIC = validation_intra$PIRADS/5#>2
+PIRADS_RADIOMIC[validation_intra$PIRADS<3] = validation_score[validation_intra$PIRADS<3]#>0.40
+decision_scores = data.frame("PIRADS" =  validation_intra$PIRADS, "radiomic" = validation_score, 
+                             "radiomic_MRI" =validation_score_DETECT,"radiomic_intra" = p_validation_intra,
+                             label = validation_intra$CSPCa)
+colnames(decision_scores) <- c("PIRADS","radiomic","radiomic_MRI","radiomic_intra","label")
+
+clinic = dca(data=decision_scores, outcome="label",
+               predictors=c("PIRADS","radiomic","radiomic_MRI","radiomic_intra"),probability = c(FALSE,FALSE,FALSE,FALSE), smooth=TRUE,xstart = 0.05,xstop = 0.5) 
+
+
+covariates <- c("PIRADS","radiomic","radiomic_MRI","radiomic_intra")
+variables = paste(covariates , collapse="+")
+var_models <- glm(as.formula(paste("label~", variables) ),data = decision_scores)
+summary(var_models)
+
+```
+```{r inverventions avoided}
+clinic_avoid = dca(data=decision_scores, outcome="label",
+               predictors=c("PIRADS","radiomic","radiomic_MRI"),probability = c(FALSE,FALSE,FALSE), smooth=TRUE, intervention = TRUE,xstart = 0.05,xstop = 0.5) 
+
+```
+
+
+
+
+
+```{r multi-reader analysis}
+library(irr)
+multi_reader = read.csv(file = 'LIJ_multireader.csv')
+readers = cbind(multi_reader$PIRADS,multi_reader$PIRADS_reader2)
+readers_binary = cbind(multi_reader$PIRADS >2,multi_reader$PIRADS_reader2>2)
+# Compute kapa
+kappa2(readers)
+kappa2(readers_binary)
+
+```
+
+
